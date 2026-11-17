@@ -2,12 +2,12 @@ extends Node2D
 
 # Configurações do Plano Cartesiano Redimensionado (RF04, RF08)
 const GRAPH_RECT = Rect2(40, 60, 1200, 520)
-const SCALE_PX = 26.0  # Fator de escala: 1 unidade matemática = 26 pixels
-const ORIGIN_PX = Vector2(640, 320) # Origem matemática (0,0) perfeitamente centralizada
-const X_MIN = -16.0
-const X_MAX = 16.0
-const Y_MIN = -10.0
-const Y_MAX = 10.0
+const SCALE_PX = 20
+const ORIGIN_PX = Vector2(640, 320)
+const X_MIN = -(GRAPH_RECT.size.x / 2.0) / SCALE_PX # -40.0
+const X_MAX = (GRAPH_RECT.size.x / 2.0) / SCALE_PX  #  40.0
+const Y_MIN = -(GRAPH_RECT.size.y / 2.0) / SCALE_PX # -17.33
+const Y_MAX = (GRAPH_RECT.size.y / 2.0) / SCALE_PX  #  17.33
 
 # Estado da partida
 var current_level_idx: int = 0
@@ -47,6 +47,8 @@ var tutorial_messages = [
 	"Dica da 1ª Fase:\n\nAjuste o coeficiente de inclinação 'a' para direcionar a reta diretamente ao alvo, passando longe dos obstáculos."
 ]
 
+var graph_canvas: Control
+
 func _ready():
 	build_ui()
 	show_main_menu()
@@ -80,20 +82,18 @@ func _process(delta: float):
 		
 		var substeps = 25
 		var step_dx = (next_x - prev_x) / substeps
+		var lvl = GameData.levels[current_level_idx]
 		
 		for i in range(1, substeps + 1):
 			var test_x = prev_x + step_dx * i
 			var test_y = eval_f(test_x)
 			var math_pt = Vector2(test_x, test_y)
+			var px_pt = math_to_px(math_pt)
 			
-			if test_x > X_MAX or test_y > Y_MAX or test_y < Y_MIN:
-				curve_points.append(math_to_px(math_pt))
-				stop_firing(false, "Falha: O traçado saiu dos limites do plano! Analise a curva e ajuste os coeficientes.", math_to_px(math_pt))
-				break
+			# Desenha o ponto livremente, mesmo se sair de GRAPH_RECT
+			curve_points.append(px_pt)
 			
-			curve_points.append(math_to_px(math_pt))
-			
-			var lvl = GameData.levels[current_level_idx]
+			# 1. Colisão com obstáculos
 			var hit_obs = false
 			for obs in lvl["obstacles"]:
 				if math_pt.distance_to(obs["pos"]) <= obs["radius"]:
@@ -101,15 +101,22 @@ func _process(delta: float):
 					break
 			
 			if hit_obs:
-				stop_firing(false, "Colisão detectada com o obstáculo! Observe o ponto de corte e refaça a trajetória.", math_to_px(math_pt))
+				stop_firing(false, "Colisão detectada com o obstáculo! Observe o ponto de corte e refaça a trajetória.", px_pt)
 				break
 			
+			# 2. Acerto no alvo
 			if math_pt.distance_to(lvl["target_pos"]) <= lvl["target_radius"]:
-				stop_firing(true, "Excelente! Alvo atingido com sucesso!", math_to_px(math_pt))
+				stop_firing(true, "Excelente! Alvo atingido com sucesso!", px_pt)
+				break
+			
+			# 3. Condição de ERRO: chegou ao fim do eixo X ou escapou muito longe na vertical
+			var max_y_escape = Y_MAX * 2.5
+			if test_x >= X_MAX or abs(test_y) > max_y_escape:
+				stop_firing(false, "Errou o alvo! A curva passou fora do objetivo.", px_pt)
 				break
 		
 		sim_x = next_x
-		queue_redraw()
+		graph_canvas.queue_redraw()
 
 func stop_firing(won: bool, message: String, impact_px: Vector2):
 	is_firing = false
@@ -127,14 +134,17 @@ func stop_firing(won: bool, message: String, impact_px: Vector2):
 	else:
 		lbl_feedback.modulate = Color(1.0, 0.45, 0.45)
 	
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
-func _draw():
+func _on_graph_draw():
 	if not hud_panel.visible:
 		return
 		
+	# Mantém as coordenadas globais do plano, mas recorta tudo dentro de GRAPH_RECT
+	graph_canvas.draw_set_transform(-GRAPH_RECT.position)
+	
 	# Área de fundo do plano cartesiano
-	draw_rect(GRAPH_RECT, Color(0.08, 0.1, 0.14), true)
+	graph_canvas.draw_rect(GRAPH_RECT, Color(0.08, 0.1, 0.14), true)
 	
 	var grid_color = Color(0.16, 0.2, 0.26)
 	
@@ -142,21 +152,21 @@ func _draw():
 	for x in range(int(X_MIN), int(X_MAX) + 1):
 		var px_x = math_to_px(Vector2(x, 0)).x
 		if px_x >= GRAPH_RECT.position.x and px_x <= GRAPH_RECT.end.x:
-			draw_line(Vector2(px_x, GRAPH_RECT.position.y), Vector2(px_x, GRAPH_RECT.end.y), grid_color, 1.0)
-			if x != 0 and x % 2 == 0:
-				draw_string(ThemeDB.fallback_font, Vector2(px_x - 8, ORIGIN_PX.y + 16), str(x), HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.65, 0.7, 0.75))
+			graph_canvas.draw_line(Vector2(px_x, GRAPH_RECT.position.y), Vector2(px_x, GRAPH_RECT.end.y), grid_color, 1.0)
+			if x != 0 and x % 2 == 0 and abs(x) < int(X_MAX):
+				graph_canvas.draw_string(ThemeDB.fallback_font, Vector2(px_x - 8, ORIGIN_PX.y + 16), str(x), HORIZONTAL_ALIGNMENT_CENTER, -1, 11, Color(0.65, 0.7, 0.75))
 				
-	# Linhas horizontais (Eixo Y ampliado de -10 a 10)
+	# Linhas horizontais (Eixo Y)
 	for y in range(int(Y_MIN), int(Y_MAX) + 1):
 		var px_y = math_to_px(Vector2(0, y)).y
 		if px_y >= GRAPH_RECT.position.y and px_y <= GRAPH_RECT.end.y:
-			draw_line(Vector2(GRAPH_RECT.position.x, px_y), Vector2(GRAPH_RECT.end.x, px_y), grid_color, 1.0)
-			if y != 0 and y % 2 == 0:
-				draw_string(ThemeDB.fallback_font, Vector2(ORIGIN_PX.x + 6, px_y + 4), str(y), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.65, 0.7, 0.75))
+			graph_canvas.draw_line(Vector2(GRAPH_RECT.position.x, px_y), Vector2(GRAPH_RECT.end.x, px_y), grid_color, 1.0)
+			if y != 0 and y % 2 == 0 and abs(y) < int(Y_MAX):
+				graph_canvas.draw_string(ThemeDB.fallback_font, Vector2(ORIGIN_PX.x + 6, px_y + 4), str(y), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.65, 0.7, 0.75))
 
 	# Eixos principais (X = 0 e Y = 0)
-	draw_line(Vector2(GRAPH_RECT.position.x, ORIGIN_PX.y), Vector2(GRAPH_RECT.end.x, ORIGIN_PX.y), Color(0.4, 0.48, 0.58), 2.0)
-	draw_line(Vector2(ORIGIN_PX.x, GRAPH_RECT.position.y), Vector2(ORIGIN_PX.x, GRAPH_RECT.end.y), Color(0.4, 0.48, 0.58), 2.0)
+	graph_canvas.draw_line(Vector2(GRAPH_RECT.position.x, ORIGIN_PX.y), Vector2(GRAPH_RECT.end.x, ORIGIN_PX.y), Color(0.4, 0.48, 0.58), 2.0)
+	graph_canvas.draw_line(Vector2(ORIGIN_PX.x, GRAPH_RECT.position.y), Vector2(ORIGIN_PX.x, GRAPH_RECT.end.y), Color(0.4, 0.48, 0.58), 2.0)
 	
 	var lvl = GameData.levels[current_level_idx]
 	
@@ -164,33 +174,33 @@ func _draw():
 	for obs in lvl["obstacles"]:
 		var obs_px = math_to_px(obs["pos"])
 		var obs_r = obs["radius"] * SCALE_PX
-		draw_circle(obs_px, obs_r, Color(0.85, 0.22, 0.25, 0.85))
-		draw_arc(obs_px, obs_r, 0, TAU, 36, Color(1.0, 0.5, 0.5), 2.0)
+		graph_canvas.draw_circle(obs_px, obs_r, Color(0.85, 0.22, 0.25, 0.85))
+		graph_canvas.draw_arc(obs_px, obs_r, 0, TAU, 36, Color(1.0, 0.5, 0.5), 2.0)
 	
 	# Alvo
 	var target_px = math_to_px(lvl["target_pos"])
 	var target_r = lvl["target_radius"] * SCALE_PX
-	draw_circle(target_px, target_r, Color(0.18, 0.8, 0.35, 0.85))
-	draw_arc(target_px, target_r, 0, TAU, 36, Color(0.6, 1.0, 0.7), 2.5)
-	draw_circle(target_px, target_r * 0.35, Color(0.9, 1.0, 0.9))
+	graph_canvas.draw_circle(target_px, target_r, Color(0.18, 0.8, 0.35, 0.85))
+	graph_canvas.draw_arc(target_px, target_r, 0, TAU, 36, Color(0.6, 1.0, 0.7), 2.5)
+	graph_canvas.draw_circle(target_px, target_r * 0.35, Color(0.9, 1.0, 0.9))
 	
 	# Ponto Azul de Origem
 	var start_px = math_to_px(lvl["start_pos"])
-	draw_circle(start_px, 8.0, Color(0.2, 0.6, 1.0))
-	draw_arc(start_px, 11.0, 0, TAU, 24, Color(0.6, 0.85, 1.0), 2.0)
+	graph_canvas.draw_circle(start_px, 8.0, Color(0.2, 0.6, 1.0))
+	graph_canvas.draw_arc(start_px, 11.0, 0, TAU, 24, Color(0.6, 0.85, 1.0), 2.0)
 	
 	# Traçado do Gráfico
 	if curve_points.size() >= 2:
 		var line_color = Color(0.3, 1.0, 0.5) if level_won else Color(1.0, 0.85, 0.2)
-		draw_polyline(curve_points, line_color, 3.5, true)
+		graph_canvas.draw_polyline(curve_points, line_color, 3.5, true)
 	
 	if has_collided:
-		draw_circle(collision_point, 7.0, Color(1.0, 0.2, 0.2))
+		graph_canvas.draw_circle(collision_point, 7.0, Color(1.0, 0.2, 0.2))
 	elif level_won:
-		draw_circle(collision_point, 8.0, Color(0.4, 1.0, 0.4))
+		graph_canvas.draw_circle(collision_point, 8.0, Color(0.4, 1.0, 0.4))
 
 	# Contorno do gráfico
-	draw_rect(GRAPH_RECT, Color(0.3, 0.36, 0.45), false, 2.0)
+	graph_canvas.draw_rect(GRAPH_RECT, Color(0.3, 0.36, 0.45), false, 2.0)
 
 func parse_and_validate(text: String, param_name: String) -> Variant:
 	var clean = text.strip_edges().replace(",", ".")
@@ -249,7 +259,7 @@ func _on_fire_pressed():
 	btn_next_level.visible = false
 	lbl_feedback.text = "Traçando gráfico f(x)..."
 	lbl_feedback.modulate = Color(0.85, 0.9, 1.0)
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
 func _on_reset_pressed():
 	is_firing = false
@@ -263,7 +273,7 @@ func _on_reset_pressed():
 	input_b.text = str(lvl["default_b"])
 	lbl_feedback.text = "Fase reiniciada aos valores padrão. " + lvl["hint"]
 	lbl_feedback.modulate = Color(0.8, 0.85, 0.95)
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
 func load_level(idx: int):
 	current_level_idx = idx
@@ -288,7 +298,7 @@ func load_level(idx: int):
 	menu_panel.visible = false
 	level_select_panel.visible = false
 	hud_panel.visible = true
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
 func update_attempts_label():
 	var count = GameData.attempts_per_level.get(current_level_idx, 0)
@@ -299,7 +309,7 @@ func show_main_menu():
 	menu_panel.visible = true
 	level_select_panel.visible = false
 	hud_panel.visible = false
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
 func show_level_select():
 	menu_panel.visible = false
@@ -315,7 +325,7 @@ func show_level_select():
 		else:
 			level_buttons[i].disabled = true
 			level_buttons[i].text = lvl["name"] + "  [BLOQUEADA]"
-	queue_redraw()
+	graph_canvas.queue_redraw()
 
 func start_tutorial():
 	load_level(0)
@@ -420,6 +430,14 @@ func build_ui():
 	hud_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui_layer.add_child(hud_panel)
+	
+	graph_canvas = Control.new()
+	graph_canvas.position = GRAPH_RECT.position
+	graph_canvas.size = GRAPH_RECT.size
+	graph_canvas.clip_contents = true
+	graph_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	graph_canvas.draw.connect(_on_graph_draw)
+	hud_panel.add_child(graph_canvas)
 	
 	# Barra de topo alinhada com o gráfico
 	var top_bar = HBoxContainer.new()
