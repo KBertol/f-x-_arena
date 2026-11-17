@@ -4,10 +4,10 @@ extends Node2D
 const GRAPH_RECT = Rect2(40, 60, 1200, 520)
 const SCALE_PX = 20
 const ORIGIN_PX = Vector2(640, 320)
-const X_MIN = -(GRAPH_RECT.size.x / 2.0) / SCALE_PX # -40.0
-const X_MAX = (GRAPH_RECT.size.x / 2.0) / SCALE_PX  #  40.0
-const Y_MIN = -(GRAPH_RECT.size.y / 2.0) / SCALE_PX # -17.33
-const Y_MAX = (GRAPH_RECT.size.y / 2.0) / SCALE_PX  #  17.33
+const X_MIN = -(GRAPH_RECT.size.x / .10) / SCALE_PX
+const X_MAX = (GRAPH_RECT.size.x / .10) / SCALE_PX
+const Y_MIN = -(GRAPH_RECT.size.y / .10) / SCALE_PX
+const Y_MAX = (GRAPH_RECT.size.y / .10) / SCALE_PX
 
 # Estado da partida
 var current_level_idx: int = 0
@@ -512,16 +512,27 @@ func build_ui():
 	btn_reset.pressed.connect(_on_reset_pressed)
 	controls_bar.add_child(btn_reset)
 	
+	# Linha inferior: mensagem de feedback à esquerda + botão Avançar Fase à direita
+	var feedback_bar = HBoxContainer.new()
+	feedback_bar.add_theme_constant_override("separation", 14)
+	bottom_box.add_child(feedback_bar)
+	
+	lbl_feedback = Label.new()
+	lbl_feedback.add_theme_font_size_override("font_size", 16)
+	lbl_feedback.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	feedback_bar.add_child(lbl_feedback)
+	
 	btn_next_level = Button.new()
-	btn_next_level.text = "Avançar Fase"
-	btn_next_level.custom_minimum_size = Vector2(140, 38)
+	btn_next_level.text = "Avançar Fase →"
+	btn_next_level.custom_minimum_size = Vector2(160, 38)
 	btn_next_level.modulate = Color(0.4, 1.0, 0.5)
 	btn_next_level.visible = false
 	btn_next_level.pressed.connect(func():
 		if current_level_idx + 1 < GameData.levels.size():
 			load_level(current_level_idx + 1)
 	)
-	controls_bar.add_child(btn_next_level)
+	feedback_bar.add_child(btn_next_level)
 	
 	lbl_feedback = Label.new()
 	lbl_feedback.add_theme_font_size_override("font_size", 16)
