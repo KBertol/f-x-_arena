@@ -1,14 +1,11 @@
-78098b89c88a74ebe8c20117b8754620
-<<<<<<< Updated upstream
-::res://::1794929061
-GameData.gd::GDScript::3015475062252516681::1793128801::0::1::::<>Node<><>0<>0<><>::
-icon.svg::CompressedTexture2D::2769041704946406822::1793127619::1793127710::1::::<><><>0<>0<>9ba0c2efca475e89061acee024627e7e<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
-main.gd::GDScript::4035827934060405461::1793129049::0::1::::<>Node2D<><>0<>0<><>::
-main.tscn::PackedScene::8043097550744924393::1793129049::0::1::::<><><>0<>0<><>::uid://bxq8q441erm0l::::res://main.gd
-=======
-::res://::1793128256
-GameData.gd::GDScript::3015475062252516681::1793127619::0::1::::<>Node<><>0<>0<><>::
-icon.svg::CompressedTexture2D::2769041704946406822::1793127619::1793127710::1::::<><><>0<>0<>9ba0c2efca475e89061acee024627e7e<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
-main.gd::GDScript::4035827934060405461::1793127619::0::1::::<>Node2D<><>0<>0<><>::
-main.tscn::PackedScene::8043097550744924393::1793127619::0::1::::<><><>0<>0<><>::uid://bxq8q441erm0l::::res://main.gd
->>>>>>> Stashed changes
+9cad1ddce9e5a63143ba340c9520626b
+::res://::1794933279
+export_presets.cfg::TextFile::-1::1794933279::0::1::::<><><>0<>0<><>::
+GameData.gd::GDScript::3015475062252516681::1794931554::0::1::::<>Node<><>0<>0<><>::
+icon.svg::CompressedTexture2D::2769041704946406822::1794931554::1794931554::1::::<><><>0<>0<>9ba0c2efca475e89061acee024627e7e<>res://.godot/imported/icon.svg-218a8f2b3041327d8a5756f3a245f83b.ctex::
+main.gd::GDScript::4035827934060405461::1794931554::0::1::::<>Node2D<><>0<>0<><>::
+main.tscn::PackedScene::8043097550744924393::1794931554::0::1::::<><><>0<>0<><>::uid://bxq8q441erm0l::::res://main.gd
+::res://export_web/::1794933278
+index.apple-touch-icon.png::CompressedTexture2D::2715315606071831413::1794933278::1794933324::1::::<><><>0<>0<>a3d84ab8e28f8f24622af68639853cd5<>res://.godot/imported/index.apple-touch-icon.png-c440b50297e22d994c134e7e971727e0.ctex::
+index.icon.png::CompressedTexture2D::5585927176204086689::1794933278::1794933324::1::::<><><>0<>0<>86a73992f407198877fe6664f402be5b<>res://.godot/imported/index.icon.png-4c9fa4de9d1411a549ce5d2870d126d7.ctex::
+index.png::CompressedTexture2D::7835620354294969539::1794933278::1794933324::1::::<><><>0<>0<>22190950ffc2a70bf5c5c2be27bf93ab<>res://.godot/imported/index.png-fdb518240498790eb22b61d9607fb8b5.ctex::
